@@ -236,13 +236,13 @@ docker-buildx-cleanup:
 .PHONY: docker-buildx-build
 docker-buildx-build: test
 	$(MAKE) docker-buildx-setup
-	- docker buildx build --platform=${PLATFORMS} --tag ${BUNDLE_IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
+	- docker buildx build --platform=${PLATFORMS} --tag ${IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
 	$(MAKE) docker-buildx-cleanup
 
 .PHONY: docker-buildx-push
 docker-buildx-push: test 
 	$(MAKE) docker-buildx-setup
-	- docker buildx build --push --platform=${PLATFORMS} --tag ${BUNDLE_IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
+	- docker buildx build --push --platform=${PLATFORMS} --tag ${IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
 	$(MAKE) docker-buildx-cleanup
 
 # Clone of docker-buildx command but redesigned to work with podman's workflow
