@@ -16,7 +16,8 @@
 # Current Operator version
 VERSION ?= `cat $(PWD)/VERSION`
 # Default bundle image tag
-BUNDLE_IMG ?= quay.io/devfile/registry-operator-bundle:v$(VERSION)
+# BUNDLE_IMG ?= quay.io/devfile/registry-operator-bundle:v$(VERSION)
+BUNDLE_IMG ?= quay.io/rh-ee-jdubrick/test-registry-operator-bundle:v$(VERSION)
 CERT_MANAGER_VERSION ?= v1.11.0
 ENABLE_WEBHOOKS ?= true
 ENABLE_WEBHOOK_HTTP2 ?= false
@@ -31,7 +32,8 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?= quay.io/devfile/registry-operator:next
+# IMG ?= quay.io/devfile/registry-operator:next
+IMG ?= quay.io/rh-ee-jdubrick/test-registry-operator:next
 # ENVTEST_VERSION refers to the version of the setup-envtest binary to use
 ENVTEST_VERSION=v0.0.0-20240405143037-c25fe2f5ca0f
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -196,43 +198,52 @@ docker-push:
 # To properly provided solutions that supports more than one platform you should use this option.
 # **docker-buildx does not work with podman**
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
-.PHONY: docker-buildx
-docker-buildx: test ## Build and push docker image for the manager for cross-platform support
-# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+
+.PHONY: docker-bundle-buildx-setup
+docker-bundle-buildx-setup:
+	- docker buildx create --name bundle-builder
+	docker buildx use bundle-builder
+
+.PHONY: docker-bundle-buildx-cleanup
+docker-bundle-buildx-cleanup:
+	- docker buildx rm bundle-builder
+
+# Build the bundle image.
+.PHONY: docker-bundle-buildx-build
+docker-bundle-buildx-build:
+	$(MAKE) docker-bundle-buildx-setup
+	- docker buildx build --platform=${PLATFORMS} --tag ${BUNDLE_IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
+	$(MAKE) docker-bundle-buildx-cleanup
+
+
+.PHONY: docker-bundle-buildx-push
+docker-bundle-buildx-push:
+	$(MAKE) docker-bundle-buildx-setup
+	- docker buildx build --push --platform=${PLATFORMS} --tag ${BUNDLE_IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
+	$(MAKE) docker-bundle-buildx-cleanup
+
+.PHONY: docker-buildx-setup
+docker-buildx-setup:
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- docker buildx create --name registry-operator-builder
 	docker buildx use registry-operator-builder
-	$(MAKE) docker-buildx-helper
+
+.PHONY: docker-buildx-cleanup
+docker-buildx-cleanup:
 	- docker buildx rm registry-operator-builder
 	rm Dockerfile.cross
 
-# PRIVATE: Intended for internal use and is not meant to be called by a user
-# This command helps control the flow for whether or not to push the multi-arch images or to only test the build
-.PHONY: docker-buildx-helper
-docker-buildx-helper:
-ifeq ($(PUSH_IMAGE),true)
-	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} --provenance=false -f Dockerfile.cross $(shell pwd)
-else
-	- docker buildx build --platform=$(PLATFORMS) --tag ${IMG} --provenance=false -f Dockerfile.cross $(shell pwd)
-endif
-
-# PRIVATE: Intended for internal use and is not meant to be called by a user
-# This command helps control the flow for whether or not to push the multi-arch images or to only test the build
-.PHONY: docker-bundle-buildx-helper
-docker-bundle-buildx-helper:
-ifeq ($(PUSH_IMAGE),true)
-	- docker buildx build --push --platform=${PLATFORMS} --tag ${BUNDLE_IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
-else
+.PHONY: docker-buildx-build
+docker-buildx-build: test
+	$(MAKE) docker-buildx-setup
 	- docker buildx build --platform=${PLATFORMS} --tag ${BUNDLE_IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
-endif
+	$(MAKE) docker-buildx-cleanup
 
-# Build the bundle image.
-.PHONY: docker-bundle-buildx
-docker-bundle-buildx:
-	- docker buildx create --name bundle-builder
-	docker buildx use bundle-builder
-	$(MAKE) docker-bundle-buildx-helper
-	- docker buildx rm bundle-builder
+.PHONY: docker-buildx-push
+docker-buildx-push: test 
+	$(MAKE) docker-buildx-setup
+	- docker buildx build --push --platform=${PLATFORMS} --tag ${BUNDLE_IMG} --provenance=false -f bundle.Dockerfile $(shell pwd)
+	$(MAKE) docker-buildx-cleanup
 
 # Clone of docker-buildx command but redesigned to work with podman's workflow
 # Designed to build and push multi architecture images of the registry operator

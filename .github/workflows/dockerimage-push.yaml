@@ -16,7 +16,7 @@ name: Next Dockerimage
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, workflow-test/multi-arch-support ]
 
 jobs:
   push-operator-image:
@@ -36,7 +36,7 @@ jobs:
         password: ${{ secrets.QUAY_PASSWORD }}
 
     - name: Docker Buildx - Operator
-      run: "make docker-buildx"
+      run: "make docker-buildx-push"
         
   push-operator-bundle:
     runs-on: ubuntu-latest
@@ -55,4 +55,4 @@ jobs:
         password: ${{ secrets.QUAY_PASSWORD }}
 
     - name: Docker Buildx - Bundle
-      run: "make docker-bundle-buildx"
+      run: "make docker-bundle-buildx-push"
