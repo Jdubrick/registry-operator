@@ -96,7 +96,7 @@ jobs:
 
   operator-build:
     name: Check operator container image build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Check out code into the Go module directory
