@@ -104,6 +104,9 @@ jobs:
 
       - name: Set up QEMU # Enables arm64 image building
         uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 #v3.0.0
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.7.1
 
       - name: Check if operator docker build is working
         run: make docker-buildx-build
